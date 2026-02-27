@@ -182,6 +182,12 @@ func (ch *commandHandler) handleScheduleCommand(
 	lowerCaseHeader := make(map[string]string, len(attrs.NexusHeader))
 	for k, v := range attrs.NexusHeader {
 		lowerK := strings.ToLower(k)
+		if _, exists := lowerCaseHeader[lowerK]; exists {
+			return command.FailWorkflowTaskError{
+				Cause:   enumspb.WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES,
+				Message: fmt.Sprintf("ScheduleNexusOperationCommandAttributes.NexusHeader contains duplicate key (case-insensitive): %q", k),
+			}
+		}
 		lowerCaseHeader[lowerK] = v
 		headerLength += len(lowerK) + len(v)
 		if slices.Contains(ch.config.DisallowedOperationHeaders(), lowerK) {
