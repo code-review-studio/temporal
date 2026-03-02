@@ -21,6 +21,18 @@ func formatReportLines(reports []TestReport) []string {
 	return lines
 }
 
+// formatCIBreakerLines returns a plain-text bullet line per CI breaker report.
+// Unlike formatReportLines, this shows how many CI runs were broken instead of
+// a percentage, since CI breakers don't have meaningful TotalRuns data.
+func formatCIBreakerLines(reports []TestReport) []string {
+	var lines []string
+	for _, r := range reports {
+		lines = append(lines, fmt.Sprintf("• %d CI runs broken (%d total failures): `%s`",
+			r.CIRunsBroken, r.FailureCount, r.TestName))
+	}
+	return lines
+}
+
 // formatLinks formats GitHub URLs as numbered markdown links
 func formatLinks(urls []string, maxLinks int) string {
 	linkCount := len(urls)

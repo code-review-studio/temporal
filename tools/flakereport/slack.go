@@ -79,7 +79,7 @@ func buildSuccessMessage(summary *ReportSummary, runID, repo string, days int) *
 	}
 
 	// Add CI breakers details
-	if lines := formatReportLines(summary.CIBreakers); len(lines) > 0 {
+	if lines := formatCIBreakerLines(summary.CIBreakers); len(lines) > 0 {
 		if len(lines) > slackMaxListItems {
 			lines = lines[:slackMaxListItems]
 		}
