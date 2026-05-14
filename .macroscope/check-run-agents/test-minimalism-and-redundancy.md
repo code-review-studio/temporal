@@ -19,7 +19,12 @@ Review changed test code for redundancy and over-specification. Flag unnecessary
 
 ### Don't Assert What You Can Assume (🟡 Should fix)
 
-- Assertions that re-verify postconditions of code that was just executed elsewhere (e.g., asserting `TerminateWorkflowExecution` worked inside a test of something else). You can assume standard mutable-state accessors and execution APIs work — test only what is under test.
+- Assertions on a standard accessor or non-error-returning setter that was just invoked in the same block (e.g., `s.True(s.x.IsSet())` directly after `s.x.Set(true)`, or `s.True(s.mutableState.HasPendingWorkflowTask())` after directly setting the field it reads). The accessor is not under test.
+- Re-asserting the same unconditional postcondition across sibling subtests when one subtest already covers it (e.g., asserting a field is `true` in every subtest of a function that always sets it `true`).
+
+Do NOT flag:
+- Multiple subtests exercising distinct scenarios (different inputs, edge cases, error paths) even when the underlying function is shared — defensive coverage is intentional.
+- Assertions on a field whose value IS the side effect the subtest is named for.
 
 **Cite as:** Don't Assert What You Can Assume
 **Source:** [`.github/copilot-instructions.md` § 1. Remove Redundant Code (Highest Priority)](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#1-remove-redundant-code-highest-priority)
