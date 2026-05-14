@@ -16,27 +16,55 @@ conclusion: neutral
 
 Review changed Go code for lock misuse, data races, and proto-aliasing bugs. Flag patterns that risk shard stalls, races, or correctness violations in workflow state.
 
-These rules are derived from `.github/copilot-instructions.md` (section "8. Concurrency and Safety") in this repository. See the source for original wording and examples.
-
 ## What to flag
 
-### I/O while holding locks (🔴 Must fix)
+### No I/O Under Locks (🔴 Must fix)
 
-- Any database call, RPC, network round-trip, or other blocking I/O performed while a `sync.Mutex` or `sync.RWMutex` is held. This stalls every other caller waiting on the lock. Use side effect tasks instead.
+- Database calls, RPCs, network round-trips, or other blocking I/O performed while a `sync.Mutex` or `sync.RWMutex` is held. This stalls every other caller waiting on the lock. Use side effect tasks instead.
 
-### Proto messages aliased outside the workflow lock (🔴 Must fix)
+**Cite as:** No I/O Under Locks
+**Source:** [`.github/copilot-instructions.md` § 8. Concurrency and Safety](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#8-concurrency-and-safety)
+> "Don't do IO while holding locks - use side effect tasks"
 
-- Returning a proto message pointer (or storing it in a struct field reachable outside the workflow lock) without first cloning. Use `common.CloneProto(...)` rather than returning the pointer directly. Aliased proto messages cause data races when the original is later mutated under the lock.
-- Releasing a lock and then continuing to use a value that may be modified — clone before releasing.
+### Clone Protos Accessed Outside Workflow Lock (🔴 Must fix)
 
-### Lock-type selection (🟡 Should fix)
+- Returning a proto message pointer (or storing it in a struct field reachable outside the workflow lock) without first cloning. Use `common.CloneProto(...)` rather than returning the pointer directly — aliased proto messages cause data races when the original is later mutated under the lock.
 
-- `sync.RWMutex` used where `sync.Mutex` would do. Prefer `sync.Mutex` over `sync.RWMutex` almost always, except when reads are much more common than writes (>1000×) or readers hold the lock for significant time. If the new code adds an `RWMutex`, the PR should justify the read/write ratio.
+**Cite as:** Clone Protos Accessed Outside Workflow Lock
+**Source:** [`.github/copilot-instructions.md` § 8. Concurrency and Safety](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#8-concurrency-and-safety)
+> "Proto message fields accessed outside the workflow lock must be cloned, not aliased: use `common.CloneProto(...)` rather than returning the pointer directly."
+
+### Clone Before Releasing Locks (🔴 Must fix)
+
+- Releasing a lock and then continuing to use a value that may be modified by another caller under the lock. Clone the value before releasing.
+
+**Cite as:** Clone Before Releasing Locks
+**Source:** [`.github/copilot-instructions.md` § 8. Concurrency and Safety](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#8-concurrency-and-safety)
+> "Clone data before releasing locks if it might be modified"
+
+### Prefer sync.Mutex Over sync.RWMutex (🟡 Should fix)
+
+- New `sync.RWMutex` usage where `sync.Mutex` would do. Prefer `sync.Mutex` almost always, except when reads are much more common than writes (>1000×) or readers hold the lock for significant time. If the PR adds an `RWMutex`, it should justify the read/write ratio.
+
+**Cite as:** Prefer sync.Mutex Over sync.RWMutex
+**Source:** [`.github/copilot-instructions.md` § 8. Concurrency and Safety](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#8-concurrency-and-safety)
+> "Prefer `sync.Mutex` over `sync.RWMutex` almost always, except when reads are much more common than writes (>1000×) or readers hold the lock for significant time"
+
+### Prefer Mutex Over Atomics (🟡 Should fix)
+
 - Reach-for-`atomic` patterns where a plain `sync.Mutex` would be clearer. Default to `sync.Mutex` for synchronization; atomics are an advanced tool for specific patterns or performance concerns.
 
-### Mutable shared state (🟡 Should fix)
+**Cite as:** Prefer Mutex Over Atomics
+**Source:** [`.github/copilot-instructions.md` § 8. Concurrency and Safety](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#8-concurrency-and-safety)
+> "Default to `sync.Mutex` for synchronization; atomics are an advanced tool for specific patterns or performance concerns"
+
+### Prefer Immutable Data Patterns (🟡 Should fix)
 
 - New mutable shared state (especially proto message fields) where an immutable pattern would eliminate the need for synchronization. Prefer immutable data patterns for normal structs and especially proto messages to avoid data races and synchronization.
+
+**Cite as:** Prefer Immutable Data Patterns
+**Source:** [`.github/copilot-instructions.md` § 8. Concurrency and Safety](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#8-concurrency-and-safety)
+> "Prefer immutable data patterns (for normal structs and especially proto messages) to avoid data races and synchronization"
 
 ## What to ignore
 
@@ -47,6 +75,20 @@ These rules are derived from `.github/copilot-instructions.md` (section "8. Conc
 
 ## Output format
 
-Group findings by severity (🔴 Must fix, 🟡 Should fix, 🟢 Nit). For each finding, post an inline review comment on the offending line. After inline comments, post a top-level PR comment with a one-line summary per finding. If no issues are found in the changed code, post a single top-level comment: **"All clear."**
+Group findings by severity (🔴 Must fix, 🟡 Should fix, 🟢 Nit). For each finding, post an inline review comment on the offending line.
+
+Every inline comment must end with a collapsible citation block pointing back to the original rule in this repository's own docs. Identify which `###` rule above the finding violates, then build the footer from that rule's `Cite as` / `Source` / quote — verbatim, no paraphrasing. Insert a blank line between the comment body and the `<details>` block.
+
+```
+<details><summary><em>Violates</em>: {Cite as value}</summary>
+
+**Source:** [{path} § {section}]({anchored_url})
+
+> {verbatim quote}
+
+</details>
+```
+
+After inline comments, post a top-level PR comment with a one-line summary per finding. If no issues are found in the changed code, post a single top-level comment: **"All clear."**
 
 If no issues are found, report **"All clear."** Do not invent issues to fill space.
