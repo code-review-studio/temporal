@@ -24,7 +24,7 @@ Review proto definitions and RPC handler signatures for design issues. Flag undo
 
 ### Document All Proto Fields (🔴 Must fix)
 
-- New proto fields added without doc comments. Document all proto fields — proto changes ship to every Temporal SDK and are effectively permanent.
+- New proto fields added without ANY preceding doc comment (`// ...`). Flag *only* fields with zero accompanying comment — "vague but present" is not a violation of this rule. Comment quality is out of scope for this agent.
 
 **Cite as:** Document All Proto Fields
 **Source:** [`.github/copilot-instructions.md` § 7. API and Proto Design](https://github.com/temporalio/temporal/blob/main/.github/copilot-instructions.md#7-api-and-proto-design)
